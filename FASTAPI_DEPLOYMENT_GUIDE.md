@@ -1,64 +1,89 @@
 # TS-12 FastAPI Deployment Guide for Vercel Team Integration
 
-## 1) Final Goal
+## 1) Final goal
 
-Your frontend or backend team will host the main website on Vercel.
-Your ML API should run separately as a persistent Python service, and Vercel will call it over HTTPS.
+Your frontend or backend team will host the main website on Vercel. The ML API runs as a persistent Python service, and the Core API acts as the gateway that Vercel calls over HTTPS.
 
 Recommended architecture:
 
 - Website and Node layer: Vercel
+- Core API (FastAPI gateway): Render (recommended) or Railway
 - ML inference API (FastAPI + model files): Render (recommended) or Railway
 - Data storage: managed by your full-stack team
 
 Why this split:
 
 - FastAPI with heavy ML libraries is not ideal on Vercel serverless for stable low-latency inference
-- Render or Railway gives a long-running Python web process better suited for model serving
+- Render or Railway provides a long-running Python web process better suited for model serving
+- Core API can apply business logic and guardrails without exposing ML service directly
 
-## 2) API Endpoints (Current)
+## 2) API endpoints (current)
 
-The API now exposes these endpoint groups:
+Core API (recommended for frontend use):
 
 - GET /health
 - POST /predict
-- POST /dashboard/class
-- POST /intervention/compare
-- POST /alerts/screen
-- GET /model/info
+- POST /predict_batch
+- POST /intervention
+- POST /interventions
+- GET /interventions
+- POST /performance
+- GET /performance
+- POST /alerts/high-risk
+- GET /dashboard/at_risk
 
-Note:
+ML API (internal or direct inference use):
 
-- POST /predict/batch has been removed from the API.
+- GET /health
+- POST /predict
+- POST /predict_batch
 
-## 3) Files You Must Have Before Deploy
+Notes:
 
-Ensure these exist in the repo root:
+- Vercel should call the Core API for end-to-end workflows (interventions, alerts, dashboard).
+- The Core API calls the ML API internally for inference.
 
-- main.py
-- requirements.txt
-- runtime.txt
-- saved_models/risk_classifier.pkl
-- saved_models/risk_regressor.pkl
-- saved_models/label_encoder.pkl
-- saved_models/shap_explainer.pkl
-- saved_models/config.json
+## 3) Files you must have before deploy
 
-Optional but useful:
+Ensure these exist for the ML API:
 
-- saved_models/feature_engineer.pkl (not required at runtime now)
+- services/ml_api/app/main.py
+- services/ml_api/app/model.py
+- services/ml_api/requirements.txt
+- services/ml_api/models/model.pkl
+- services/ml_api/models/model_regression.pkl
+- services/ml_api/models/label_encoder.pkl
+- services/ml_api/models/model_metadata.json
 
-## 4) Local Validation Before Deployment
-
-Run these commands in project root:
+Generate artifacts locally:
 
 ```powershell
-pip install -r requirements.txt
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+pip install -r training/requirements.txt
+python training/train.py
+```
+
+## 4) Local validation before deployment
+
+Start ML API:
+
+```powershell
+.venv\Scripts\activate
+pip install -r services/ml_api/requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload --app-dir services/ml_api
+```
+
+Start Core API:
+
+```powershell
+.venv\Scripts\activate
+pip install -r services/core_api/requirements.txt
+set ML_API_URL=http://localhost:8001/predict
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --app-dir services/core_api
 ```
 
 Test locally:
 
+- http://127.0.0.1:8001/health
 - http://127.0.0.1:8000/health
 - http://127.0.0.1:8000/docs
 
@@ -67,125 +92,82 @@ Confirm:
 - API starts without model loading errors
 - /predict works with a sample student payload
 
-## 4.1) Your Current Situation (Frontend on Localhost, ML Ready)
+## 4.1) Local frontend integration (Vercel app on localhost)
 
-If your Vercel app is still in local development (for example Next.js running on localhost), use this flow now:
-
-1. Start FastAPI with explicit local CORS:
-
-```powershell
-$env:ALLOWED_ORIGINS = "http://localhost:3000,http://127.0.0.1:3000"
-uvicorn main:app --host 0.0.0.0 --port 8000 --reload
-```
-
-2. In your frontend project (local), set API base URL:
+If your Vercel app is still in local development (for example Next.js on localhost), set the base URL in your frontend:
 
 ```bash
 # .env.local (frontend)
 FASTAPI_BASE_URL=http://127.0.0.1:8000
-```
-
-If frontend code calls API directly from browser, you can also use:
-
-```bash
+# or, if you call from the browser
 NEXT_PUBLIC_FASTAPI_BASE_URL=http://127.0.0.1:8000
 ```
 
-3. Restart frontend dev server after env change.
+If the frontend runs on a different laptop, use a LAN URL:
 
-4. Test end-to-end from frontend UI:
+- http://YOUR_LOCAL_IP:8000
 
-- Predict flow should call POST /predict
-- Dashboard flow should call POST /dashboard/class
-- Alerts flow should call POST /alerts/screen
-
-5. If frontend runs on teammate's laptop and FastAPI runs on your laptop, use LAN URL:
-
-- FastAPI URL format: http://YOUR_LOCAL_IP:8000
-- Example: http://192.168.1.29:8000
-
-6. If LAN access fails, allow inbound firewall for 8000:
+If LAN access fails, allow inbound firewall for 8000:
 
 ```powershell
 New-NetFirewallRule -DisplayName "FastAPI 8000" -Direction Inbound -Protocol TCP -LocalPort 8000 -Action Allow
 ```
 
-## 5) Deploy FastAPI to Render (Recommended)
+## 5) Deploy FastAPI to Render (recommended)
+
+Use the existing render.yaml in the repo root to deploy two services.
 
 ### Step 1: Push code to GitHub
 
-Push your latest main branch with:
+Push your latest main branch with model artifacts included:
 
-- main.py
-- requirements.txt
-- runtime.txt
-- saved_models folder
+- services/ml_api/models/*.pkl
+- services/ml_api/models/model_metadata.json
 
-### Step 2: Create web service on Render
+### Step 2: Create a Render Blueprint
 
-1. Login to Render
-2. New + -> Web Service
-3. Connect your GitHub repository
-4. Use these settings:
-   - Runtime: Python
-   - Build Command: pip install -r requirements.txt
-   - Start Command: uvicorn main:app --host 0.0.0.0 --port $PORT
+1) Login to Render
+2) New + -> Blueprint
+3) Connect your GitHub repository
+4) Render detects render.yaml and creates two services
 
-### Step 3: Add environment variables
+### Step 3: Set environment variables
 
-Set these in Render:
+ML API:
 
-- ALLOWED_ORIGINS = https://your-vercel-app.vercel.app
+- MODEL_PATH=models/model.pkl
+- REGRESSION_MODEL_PATH=models/model_regression.pkl
+- LABEL_ENCODER_PATH=models/label_encoder.pkl
+- MODEL_METADATA_PATH=models/model_metadata.json
 
-If you have more than one frontend origin:
+Core API:
 
-- ALLOWED_ORIGINS = https://your-vercel-app.vercel.app,https://www.yourdomain.com
+- ML_API_URL=https://<your-ml-api>.onrender.com/predict
+- ML_API_BATCH_URL=https://<your-ml-api>.onrender.com/predict_batch
+- ML_API_TIMEOUT=10
+- ALERT_SCORE_THRESHOLD=70
 
-### Step 4: Health check
-
-Use:
-
-- /health
-
-### Step 5: Deploy and verify
+### Step 4: Deploy and verify
 
 After deploy, verify:
 
-- https://your-render-service.onrender.com/health
-- https://your-render-service.onrender.com/docs
+- https://<your-ml-api>.onrender.com/health
+- https://<your-core-api>.onrender.com/health
+- https://<your-core-api>.onrender.com/docs
 
-## 6) What To Share With Your Vercel Team
+## 6) What to share with your Vercel team
 
 Share only these items:
 
-- Base URL, for example: https://your-render-service.onrender.com
+- Core API base URL, for example: https://<your-core-api>.onrender.com
 - Endpoint list and request schema
 - Expected response fields for each endpoint
 
 Required frontend environment variable on Vercel:
 
-- FASTAPI_BASE_URL = https://your-render-service.onrender.com
+- FASTAPI_BASE_URL=https://<your-core-api>.onrender.com
 
-## 6.1) Local-to-Production Handoff (What You Change Later)
-
-When your website moves from localhost to deployed Vercel, do exactly this:
-
-1. Keep FastAPI deployed on Render/Railway (not on Vercel serverless for this ML workload).
-2. Set backend CORS origin in FastAPI host:
-   - ALLOWED_ORIGINS = https://your-vercel-app.vercel.app
-3. Update frontend env on Vercel project settings:
-   - FASTAPI_BASE_URL = https://your-render-service.onrender.com
-4. Redeploy frontend on Vercel.
-5. Verify from deployed app:
-   - Prediction request works from website
-   - No browser CORS errors
-   - /health of FastAPI is reachable publicly
-
-If you have preview + production Vercel URLs, allow both origins:
-
-- ALLOWED_ORIGINS = https://your-vercel-app.vercel.app,https://your-vercel-preview-url.vercel.app
-
-## 7) Vercel Integration Pattern (Recommended)
+## 7) Vercel integration pattern (recommended)
 
 Use server-side calls from Next.js API routes or server actions instead of direct browser calls when possible.
 
@@ -215,36 +197,41 @@ Benefits:
 - Easier auth/rate-limit wrapping later
 - Better control over retries and error handling
 
-## 8) CORS Rules
+## 8) CORS rules (only if browser calls the API directly)
 
-Your API now supports ALLOWED_ORIGINS from environment variable.
+If the browser calls the Core API directly, add CORS middleware in services/core_api/app/main.py and allow only your Vercel domains.
 
-For production:
+Example snippet:
 
-- Do not keep wildcard origins unless needed
-- Set only your Vercel domains
+```python
+from fastapi.middleware.cors import CORSMiddleware
 
-Example:
+allowed = ["https://your-vercel-app.vercel.app"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=allowed,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+```
 
-- ALLOWED_ORIGINS = https://your-vercel-app.vercel.app
+## 9) Production checklist
 
-## 9) Production Checklist
-
-Before handing off to website team:
+Before handing off to the website team:
 
 - API URL is HTTPS and publicly reachable
 - /health returns healthy
 - /docs is visible
 - /predict returns expected fields
-- CORS is restricted to Vercel domain
 - Model files are present in deployment
 - Response time is acceptable for expected traffic
 
-## 10) Updating Models Later (Without Breaking Team)
+## 10) Updating models later (without breaking the team)
 
 When you retrain:
 
-1. Replace files in saved_models
+1. Replace files in services/ml_api/models
 2. Commit and push
 3. Trigger redeploy on Render
 4. Re-test /health and /predict
@@ -253,21 +240,21 @@ When you retrain:
 Best practice:
 
 - Keep response schema stable
-- Add version info in /model/info if needed
+- Add version info later if needed
 
-## 11) Quick Local Sharing (Same Wi-Fi Only)
+## 11) Quick local sharing (same Wi-Fi only)
 
-If teammate is on same LAN:
+If a teammate is on the same LAN:
 
 1. Run:
-   - uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+   - uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload --app-dir services/core_api
 2. Share:
    - http://YOUR_LOCAL_IP:8000/docs
 3. Allow firewall inbound on port 8000 if needed
 
 This is only for temporary local testing, not production.
 
-## 12) If You Need Public Temporary Demo Link
+## 12) If you need a public temporary demo link
 
 Use one of these:
 
@@ -275,7 +262,3 @@ Use one of these:
 - cloudflared tunnel
 
 This is useful for hackathon demos before full deployment.
-
----
-
-If you follow this guide exactly, your Vercel team can consume your FastAPI endpoints reliably while you keep model deployment independent and easy to update.
