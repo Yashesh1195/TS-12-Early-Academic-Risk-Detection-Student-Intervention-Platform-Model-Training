@@ -49,7 +49,7 @@ If these files are missing after training:
 - uvicorn app.main:app --reload --port 8001 --app-dir services/ml_api
 
 Verify ML API is running:
-- Health: http://localhost:8001/health
+- Health: http://localhost:8001/health (should show "model_loaded": true)
 - Docs: http://localhost:8001/docs
 - Note: http://localhost:8001/ shows {"detail":"Not Found"} because no root route is defined.
 
@@ -72,7 +72,7 @@ Verify Core API is running:
 	- curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68}"
 - Expected response shape:
 	- {"risk_label":"Medium","risk_label_id":1,"probabilities":{...},"risk_score_predicted":...,"risk_score_calculated":...,"reasons":[...]}
-- If you get 500, confirm model files exist in services/ml_api/models
+- If you get 500, confirm the ML API is running and the model files exist in services/ml_api/models
 
 7) Try the intervention endpoint
 - This endpoint calls the ML API and adds recommended actions.
@@ -155,6 +155,7 @@ Core API:
 ## Troubleshooting
 - If ML API returns 500, verify model files exist in services/ml_api/models
 - If core_api cannot reach ML API, confirm ML_API_URL and that ML API is running
+- If core_api returns Internal Server Error on /predict, call ML API /predict directly to verify it responds and check the ML API terminal logs
 - If you see import errors, re-check the requirements for that service
 - If you see {"detail":"Not Found"} at http://localhost:8001/, use /health or /docs
 - If prediction fails, confirm all 4 features are sent in the JSON body
