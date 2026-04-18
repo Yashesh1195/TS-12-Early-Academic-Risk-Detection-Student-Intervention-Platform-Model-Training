@@ -78,7 +78,7 @@ Verify Core API is running:
 - Send a prediction request (Windows cmd):
 	- curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68}"
 - Expected response shape:
-	- {"risk_label":"Medium","risk_label_id":1,"probabilities":{...},"risk_score_predicted":...,"risk_score_calculated":...,"reasons":[...]}
+	- {"risk_label":"Medium","risk_label_id":1,"probabilities":{...},"risk_score_predicted":...,"risk_score_calculated":...,"reasons":[...],"suggestions":[...]}
 - If you get 500, confirm the ML API is running and the model files exist in services/ml_api/models
 
 7) Try the intervention endpoint
@@ -86,7 +86,7 @@ Verify Core API is running:
 - Run in Windows cmd:
 	- curl -X POST http://localhost:8000/intervention -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68}"
 - Expected response shape:
-	- {"risk_label":"Medium","recommendations":["..."],"model":{...}}
+	- {"risk_label":"Medium","recommendations":["..."],"suggestions":["..."],"model":{...}}
 - If you see a timeout, ensure ML_API_URL is set correctly and ML API is running
 
 8) Log an intervention record
