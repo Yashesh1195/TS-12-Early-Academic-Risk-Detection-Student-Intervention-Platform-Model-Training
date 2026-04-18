@@ -9,6 +9,40 @@ This repo separates ML inference from the core API so you can deploy the ML serv
 - datasets: dataset files used for training
 - Early_Academic_Risk_Detection_Student_Intervention_Platform.ipynb: exploration notebook
 
+## Folder structure
+```
+.
+├── datasets/
+│   └── TS-PS12.csv
+├── services/
+│   ├── ml_api/
+│   │   ├── app/
+│   │   │   ├── main.py
+│   │   │   └── model.py
+│   │   ├── models/
+│   │   │   ├── model.pkl
+│   │   │   ├── model_regression.pkl
+│   │   │   ├── label_encoder.pkl
+│   │   │   └── model_metadata.json
+│   │   ├── requirements.txt
+│   │   └── Dockerfile
+│   └── core_api/
+│       ├── app/
+│       │   └── main.py
+│       ├── requirements.txt
+│       └── Dockerfile
+├── training/
+│   ├── train.py
+│   └── requirements.txt
+├── Early_Academic_Risk_Detection_Student_Intervention_Platform.ipynb
+├── FASTAPI_DEPLOYMENT_GUIDE.md
+├── RENDER_DEPLOYMENT_GUIDE.md
+├── render.yaml
+└── README.md
+```
+
+Optional notebook exports in repo root: best_model_classification.pkl, best_model_regression.pkl, label_encoder.pkl.
+
 ## Project innovation (closing the loop)
 This platform goes beyond risk prediction by closing the loop from early detection to measurable impact:
 - Explainable risk, not just a label/score: the ML API returns a `reasons` list derived from feature percentiles so faculty can see why a student is at risk. Evidence: [services/ml_api/app/model.py](services/ml_api/app/model.py), [services/ml_api/app/main.py](services/ml_api/app/main.py)

@@ -117,6 +117,19 @@ New-NetFirewallRule -DisplayName "FastAPI 8000" -Direction Inbound -Protocol TCP
 
 Use the existing render.yaml in the repo root to deploy two services.
 
+### Free-tier setup (no card required)
+
+Render lets you deploy on the free tier without adding a payment method. To stay on free:
+
+- Choose the **Free** instance type for both services when creating them.
+- Do **not** enable paid add-ons (databases, autoscaling, or private networking).
+- If prompted for billing, skip and continue with free services only.
+
+Free tier notes:
+
+- Services can spin down when idle, so the first request may be slower (cold start).
+- Keep `/health` checks for quick wake-ups before demos.
+
 ### Step 1: Push code to GitHub
 
 Push your latest main branch with model artifacts included:
@@ -130,6 +143,7 @@ Push your latest main branch with model artifacts included:
 2) New + -> Blueprint
 3) Connect your GitHub repository
 4) Render detects render.yaml and creates two services
+5) For each service, pick **Free** as the instance type
 
 ### Step 3: Set environment variables
 
