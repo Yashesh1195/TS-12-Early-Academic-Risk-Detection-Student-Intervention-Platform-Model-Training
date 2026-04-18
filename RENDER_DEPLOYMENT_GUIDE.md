@@ -34,7 +34,9 @@ Make sure your latest changes are pushed:
 
 The ML API requires these files inside services/ml_api/models:
 - model.pkl
+- model_regression.pkl
 - label_encoder.pkl
+- model_metadata.json
 
 You can create them by running locally:
 - pip install -r training/requirements.txt
@@ -50,16 +52,20 @@ If you prefer not to commit model files, upload them using one of these approach
 
 For tark-ml-api:
 - MODEL_PATH=models/model.pkl
+- REGRESSION_MODEL_PATH=models/model_regression.pkl
 - LABEL_ENCODER_PATH=models/label_encoder.pkl
+- MODEL_METADATA_PATH=models/model_metadata.json
 - RATE_LIMIT=60/minute
 - PREDICT_RATE_LIMIT=30/minute
 
 For tark-core-api:
 - ML_API_URL=https://<your-ml-api>.onrender.com/predict
+- ML_API_BATCH_URL=https://<your-ml-api>.onrender.com/predict_batch
 - ML_API_TIMEOUT=10
 - RATE_LIMIT=120/minute
 - PREDICT_RATE_LIMIT=60/minute
 - INTERVENTION_RATE_LIMIT=30/minute
+- ALERT_SCORE_THRESHOLD=70
 
 ## Step 6: Deploy and verify
 
@@ -71,10 +77,13 @@ After Render finishes deploying:
 ## Step 7: Test endpoints
 
 Predict:
-- curl -X POST https://<your-core-api>.onrender.com/predict -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68,\"risk_score\":33}"
+- curl -X POST https://<your-core-api>.onrender.com/predict -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68}"
 
 Intervention:
-- curl -X POST https://<your-core-api>.onrender.com/intervention -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68,\"risk_score\":33}"
+- curl -X POST https://<your-core-api>.onrender.com/intervention -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68}"
+
+Batch predict:
+- curl -X POST https://<your-core-api>.onrender.com/predict_batch -H "Content-Type: application/json" -d "{\"items\":[{\"student_id\":\"S-001\",\"class_id\":\"CS-A\",\"subject\":\"Math\",\"assignment\":40,\"attendance\":45,\"lms\":30,\"marks\":42},{\"student_id\":\"S-002\",\"class_id\":\"CS-A\",\"subject\":\"Math\",\"assignment\":82,\"attendance\":88,\"lms\":75,\"marks\":85}]}"
 
 ## Troubleshooting
 
