@@ -1,4 +1,8 @@
 fastapi
 uvicorn[standard]
-httpx
+numpy
+scikit-learn
+joblib
 slowapi
+xgboost
+httpx
