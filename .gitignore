@@ -4,4 +4,5 @@ __pycache__/
 .ipynb_checkpoints/
 services/ml_api/models/*.pkl
 services/ml_api/models/*.joblib
+services/core_api/data/*.json
 .env

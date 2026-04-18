@@ -34,7 +34,9 @@ This repo separates ML inference from the core API so you can deploy the ML serv
 
 This writes model artifacts to:
 - services/ml_api/models/model.pkl
+- services/ml_api/models/model_regression.pkl
 - services/ml_api/models/label_encoder.pkl
+- services/ml_api/models/model_metadata.json
 
 If these files are missing after training:
 - Confirm datasets/TS-PS12.csv exists
@@ -68,8 +70,10 @@ Verify Core API is running:
 	- Core API: http://localhost:8000/health should return {"status":"ok"}
 - Send a prediction request (Windows cmd):
 	- curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68,\"risk_score\":33}"
+- You can omit `risk_score` and let the service predict it:
+	- curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68}"
 - Expected response shape:
-	- {"risk_label":"Medium","risk_label_id":1,"probabilities":{...}}
+	- {"risk_label":"Medium","risk_label_id":1,"probabilities":{...},"risk_score_predicted":...,"risk_score_calculated":...,"reasons":[...]}
 - If you get 500, confirm model files exist in services/ml_api/models
 
 7) Try the intervention endpoint
@@ -80,29 +84,48 @@ Verify Core API is running:
 	- {"risk_label":"Medium","recommendations":["..."],"model":{...}}
 - If you see a timeout, ensure ML_API_URL is set correctly and ML API is running
 
+8) Log an intervention record
+- Use this when a mentor takes an action (counselling, remedial class, extension).
+- curl -X POST http://localhost:8000/interventions -H "Content-Type: application/json" -d "{\"student_id\":\"S-001\",\"action_type\":\"counselling\",\"mentor\":\"Dr. Shah\",\"notes\":\"Attendance plan agreed\",\"class_id\":\"CS-A\",\"subject\":\"Math\"}"
+
+9) Track performance before/after intervention
+- curl -X POST http://localhost:8000/performance -H "Content-Type: application/json" -d "{\"student_id\":\"S-001\",\"class_id\":\"CS-A\",\"subject\":\"Math\",\"before\":{\"assignment\":50,\"attendance\":55,\"lms\":40,\"marks\":48,\"risk_score\":45},\"after\":{\"assignment\":68,\"attendance\":72,\"lms\":60,\"marks\":70,\"risk_score\":30}}"
+
+10) Generate high-risk alerts from a batch
+- curl -X POST http://localhost:8000/alerts/high-risk -H "Content-Type: application/json" -d "{\"items\":[{\"student_id\":\"S-001\",\"class_id\":\"CS-A\",\"subject\":\"Math\",\"assignment\":40,\"attendance\":45,\"lms\":30,\"marks\":42,\"risk_score\":55},{\"student_id\":\"S-002\",\"class_id\":\"CS-A\",\"subject\":\"Math\",\"assignment\":82,\"attendance\":88,\"lms\":75,\"marks\":85,\"risk_score\":20}]}"
+
+11) View at-risk dashboard list (after predict_batch)
+- Call /predict_batch first to store recent predictions.
+- curl "http://localhost:8000/dashboard/at_risk?class_id=CS-A&subject=Math&severity=High"
+
 ## Notebook usage
 - Open Early_Academic_Risk_Detection_Student_Intervention_Platform.ipynb
 - Run cells top-to-bottom to reproduce dataset analysis, model comparison, and export
-- The export cell also writes best_model.pkl and label_encoder.pkl in the notebook folder
+- The export cell writes both classification and regression models plus label encoder
 
 If you want the notebook to populate the ML API models folder:
-- Copy best_model.pkl to services/ml_api/models/model.pkl
+- Copy best_model_classification.pkl to services/ml_api/models/model.pkl
+- Copy best_model_regression.pkl to services/ml_api/models/model_regression.pkl
 - Copy label_encoder.pkl to services/ml_api/models/label_encoder.pkl
 
 ## Environment variables
 
 ML API (.env.example in services/ml_api):
 - MODEL_PATH=models/model.pkl
+- REGRESSION_MODEL_PATH=models/model_regression.pkl
 - LABEL_ENCODER_PATH=models/label_encoder.pkl
+- MODEL_METADATA_PATH=models/model_metadata.json
 - RATE_LIMIT=60/minute
 - PREDICT_RATE_LIMIT=30/minute
 
 Core API (.env.example in services/core_api):
 - ML_API_URL=http://localhost:8001/predict
+- ML_API_BATCH_URL=http://localhost:8001/predict_batch
 - ML_API_TIMEOUT=10
 - RATE_LIMIT=120/minute
 - PREDICT_RATE_LIMIT=60/minute
 - INTERVENTION_RATE_LIMIT=30/minute
+- ALERT_SCORE_THRESHOLD=70
 
 ## Deployment to Render
 
