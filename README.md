@@ -9,6 +9,13 @@ This repo separates ML inference from the core API so you can deploy the ML serv
 - datasets: dataset files used for training
 - Early_Academic_Risk_Detection_Student_Intervention_Platform.ipynb: exploration notebook
 
+## Project innovation (closing the loop)
+This platform goes beyond risk prediction by closing the loop from early detection to measurable impact:
+- Explainable risk, not just a label/score: the ML API returns a `reasons` list derived from feature percentiles so faculty can see why a student is at risk. Evidence: [services/ml_api/app/model.py](services/ml_api/app/model.py), [services/ml_api/app/main.py](services/ml_api/app/main.py)
+- Actionable interventions: the Core API adds rule-based recommendations via `/intervention` so staff get next steps, not just a risk status. Evidence: [services/core_api/app/main.py](services/core_api/app/main.py)
+- Measurable pre/post impact: intervention and performance logging enable before/after comparison with deltas. Evidence: [services/core_api/app/main.py](services/core_api/app/main.py)
+- Deployable at scale: ML inference is separated from the core gateway for independent scaling and rate limiting. Evidence: [render.yaml](render.yaml)
+
 ## Prerequisites
 - Python 3.10+ installed
 - pip available
