@@ -21,9 +21,11 @@ limiter = Limiter(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
-ML_API_URL = os.getenv("ML_API_URL", "http://localhost:8001/predict")
+ML_API_BASE_URL = os.getenv("ML_API_BASE_URL", "https://ml-api-ay0v.onrender.com")
+ML_API_FALLBACK_URL = os.getenv("ML_API_FALLBACK_URL", "http://localhost:8001")
+ML_API_URL = os.getenv("ML_API_URL", f"{ML_API_BASE_URL}/predict")
 ML_API_BATCH_URL = os.getenv(
-    "ML_API_BATCH_URL", ML_API_URL.replace("/predict", "/predict_batch")
+    "ML_API_BATCH_URL", f"{ML_API_BASE_URL}/predict_batch"
 )
 ML_API_TIMEOUT = float(os.getenv("ML_API_TIMEOUT", "10"))
 ALERT_SCORE_THRESHOLD = float(os.getenv("ALERT_SCORE_THRESHOLD", "70"))
@@ -95,7 +97,11 @@ async def call_ml_api(payload: dict, url: str) -> dict:
     else:
         payload_data = payload
     async with httpx.AsyncClient(timeout=ML_API_TIMEOUT) as client:
-        resp = await client.post(url, json=payload_data)
+        try:
+            resp = await client.post(url, json=payload_data)
+        except httpx.RequestError:
+            fallback_url = url.replace(ML_API_BASE_URL, ML_API_FALLBACK_URL)
+            resp = await client.post(fallback_url, json=payload_data)
     if resp.status_code >= 400:
         raise HTTPException(status_code=resp.status_code, detail=resp.text)
     return resp.json()
