@@ -42,7 +42,6 @@ class PredictionRequest(BaseModel):
     attendance: float = Field(..., ge=0, le=100)
     lms: float = Field(..., ge=0, le=100)
     marks: float = Field(..., ge=0, le=100)
-    # risk_score: Optional[float] = Field(None, ge=0)
 
 
 class BatchPredictionRequest(BaseModel):

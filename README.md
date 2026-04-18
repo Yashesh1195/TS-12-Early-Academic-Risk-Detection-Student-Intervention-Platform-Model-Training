@@ -69,8 +69,6 @@ Verify Core API is running:
 	- ML API: http://localhost:8001/health should return {"status":"ok"}
 	- Core API: http://localhost:8000/health should return {"status":"ok"}
 - Send a prediction request (Windows cmd):
-	- curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68,\"risk_score\":33}"
-- You can omit `risk_score` and let the service predict it:
 	- curl -X POST http://localhost:8000/predict -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68}"
 - Expected response shape:
 	- {"risk_label":"Medium","risk_label_id":1,"probabilities":{...},"risk_score_predicted":...,"risk_score_calculated":...,"reasons":[...]}
@@ -79,7 +77,7 @@ Verify Core API is running:
 7) Try the intervention endpoint
 - This endpoint calls the ML API and adds recommended actions.
 - Run in Windows cmd:
-	- curl -X POST http://localhost:8000/intervention -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68,\"risk_score\":33}"
+	- curl -X POST http://localhost:8000/intervention -H "Content-Type: application/json" -d "{\"assignment\":65,\"attendance\":72,\"lms\":55,\"marks\":68}"
 - Expected response shape:
 	- {"risk_label":"Medium","recommendations":["..."],"model":{...}}
 - If you see a timeout, ensure ML_API_URL is set correctly and ML API is running
@@ -92,7 +90,7 @@ Verify Core API is running:
 - curl -X POST http://localhost:8000/performance -H "Content-Type: application/json" -d "{\"student_id\":\"S-001\",\"class_id\":\"CS-A\",\"subject\":\"Math\",\"before\":{\"assignment\":50,\"attendance\":55,\"lms\":40,\"marks\":48,\"risk_score\":45},\"after\":{\"assignment\":68,\"attendance\":72,\"lms\":60,\"marks\":70,\"risk_score\":30}}"
 
 10) Generate high-risk alerts from a batch
-- curl -X POST http://localhost:8000/alerts/high-risk -H "Content-Type: application/json" -d "{\"items\":[{\"student_id\":\"S-001\",\"class_id\":\"CS-A\",\"subject\":\"Math\",\"assignment\":40,\"attendance\":45,\"lms\":30,\"marks\":42,\"risk_score\":55},{\"student_id\":\"S-002\",\"class_id\":\"CS-A\",\"subject\":\"Math\",\"assignment\":82,\"attendance\":88,\"lms\":75,\"marks\":85,\"risk_score\":20}]}"
+- curl -X POST http://localhost:8000/alerts/high-risk -H "Content-Type: application/json" -d "{\"items\":[{\"student_id\":\"S-001\",\"class_id\":\"CS-A\",\"subject\":\"Math\",\"assignment\":40,\"attendance\":45,\"lms\":30,\"marks\":42},{\"student_id\":\"S-002\",\"class_id\":\"CS-A\",\"subject\":\"Math\",\"assignment\":82,\"attendance\":88,\"lms\":75,\"marks\":85}]}"
 
 11) View at-risk dashboard list (after predict_batch)
 - Call /predict_batch first to store recent predictions.
@@ -159,4 +157,4 @@ Core API:
 - If core_api cannot reach ML API, confirm ML_API_URL and that ML API is running
 - If you see import errors, re-check the requirements for that service
 - If you see {"detail":"Not Found"} at http://localhost:8001/, use /health or /docs
-- If prediction fails, confirm all 5 features are sent in the JSON body
+- If prediction fails, confirm all 4 features are sent in the JSON body

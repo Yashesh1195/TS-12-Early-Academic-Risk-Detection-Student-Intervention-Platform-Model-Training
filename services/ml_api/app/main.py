@@ -27,7 +27,6 @@ class PredictionRequest(BaseModel):
     attendance: float = Field(..., ge=0, le=100)
     lms: float = Field(..., ge=0, le=100)
     marks: float = Field(..., ge=0, le=100)
-    # risk_score: Optional[float] = Field(None, ge=0)
 
 
 class BatchPredictionRequest(BaseModel):
@@ -42,7 +41,6 @@ class PredictionResponse(BaseModel):
     risk_label_id: int
     probabilities: Optional[dict]
     risk_score_predicted: Optional[float]
-    risk_score_input: Optional[float]
     risk_score_calculated: Optional[float]
     reasons: List[dict]
 
@@ -82,9 +80,7 @@ def predict(request: Request, payload: PredictionRequest) -> PredictionResponse:
         predicted_score = model_store.predict_risk_score(to_feature_vector(feature_map))
         calculated_score = model_store.calculate_risk_score(feature_map)
         risk_score_value = (
-            payload.risk_score
-            if payload.risk_score is not None
-            else predicted_score if predicted_score is not None else calculated_score
+            predicted_score if predicted_score is not None else calculated_score
         )
         label, label_id, probs = model_store.predict(to_feature_vector(feature_map))
         explain_map = dict(feature_map)
@@ -100,7 +96,6 @@ def predict(request: Request, payload: PredictionRequest) -> PredictionResponse:
         risk_label_id=int(label_id),
         probabilities=probs,
         risk_score_predicted=predicted_score,
-        risk_score_input=payload.risk_score,
         risk_score_calculated=calculated_score,
         reasons=reasons,
     )
@@ -117,9 +112,7 @@ def predict_batch(
         predicted_score = model_store.predict_risk_score(to_feature_vector(feature_map))
         calculated_score = model_store.calculate_risk_score(feature_map)
         risk_score_value = (
-            item.risk_score
-            if item.risk_score is not None
-            else predicted_score if predicted_score is not None else calculated_score
+            predicted_score if predicted_score is not None else calculated_score
         )
         label, label_id, probs = model_store.predict(to_feature_vector(feature_map))
         explain_map = dict(feature_map)
@@ -134,7 +127,6 @@ def predict_batch(
                 risk_label_id=int(label_id),
                 probabilities=probs,
                 risk_score_predicted=predicted_score,
-                risk_score_input=item.risk_score,
                 risk_score_calculated=calculated_score,
                 reasons=reasons,
             )
