@@ -151,6 +151,7 @@ async def intervention(request: Request, payload: PredictionRequest) -> dict:
     return {
         "risk_label": label,
         "recommendations": intervention_rules(label),
+        "suggestions": result.get("suggestions", []),
         "model": result,
     }
 

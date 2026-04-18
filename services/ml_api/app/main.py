@@ -43,6 +43,7 @@ class PredictionResponse(BaseModel):
     risk_score_predicted: Optional[float]
     risk_score_calculated: Optional[float]
     reasons: List[dict]
+    suggestions: List[str]
 
 
 class BatchPredictionResponse(BaseModel):
@@ -60,6 +61,84 @@ def to_feature_map(payload: PredictionRequest) -> dict:
 
 def to_feature_vector(feature_map: dict) -> list[float]:
     return [feature_map[name] for name in FEATURE_COLUMNS]
+
+
+def build_suggestions(
+    risk_label: str, reasons: List[dict], risk_score_value: Optional[float]
+) -> List[str]:
+    label = (risk_label or "").strip().lower()
+    suggestions: List[str] = []
+
+    if risk_score_value is not None:
+        if risk_score_value >= 70:
+            suggestions.extend(
+                [
+                    "Schedule weekly mentor check-ins and academic support.",
+                    "Create a short-term improvement plan with clear weekly goals.",
+                    "Engage guardians and monitor progress every 2 weeks.",
+                ]
+            )
+        elif risk_score_value >= 40:
+            suggestions.extend(
+                [
+                    "Set bi-weekly progress reviews and study targets.",
+                    "Focus on consistent assignment completion.",
+                    "Provide optional tutoring or peer support.",
+                ]
+            )
+        else:
+            suggestions.extend(
+                [
+                    "Maintain current study routine and attendance.",
+                    "Continue monthly performance monitoring.",
+                ]
+            )
+    elif label:
+        if label == "high":
+            suggestions.extend(
+                [
+                    "Schedule weekly mentor check-ins and academic support.",
+                    "Create a short-term improvement plan with clear weekly goals.",
+                    "Engage guardians and monitor progress every 2 weeks.",
+                ]
+            )
+        elif label == "medium":
+            suggestions.extend(
+                [
+                    "Set bi-weekly progress reviews and study targets.",
+                    "Focus on consistent assignment completion.",
+                    "Provide optional tutoring or peer support.",
+                ]
+            )
+        elif label == "low":
+            suggestions.extend(
+                [
+                    "Maintain current study routine and attendance.",
+                    "Continue monthly performance monitoring.",
+                ]
+            )
+
+    reason_map = {
+        "attendance": "Improve attendance with reminders and follow-up calls.",
+        "marks": "Offer subject-specific revision sessions and practice quizzes.",
+        "assignment": "Set a submission schedule and track weekly completion.",
+        "lms": "Increase LMS engagement with weekly activity goals.",
+        "risk_score": "Prioritize immediate intervention and closer monitoring.",
+    }
+
+    for reason in reasons:
+        feature = str(reason.get("feature", "")).strip().lower()
+        suggestion = reason_map.get(feature)
+        if suggestion:
+            suggestions.append(suggestion)
+
+    deduped: List[str] = []
+    seen = set()
+    for item in suggestions:
+        if item not in seen:
+            deduped.append(item)
+            seen.add(item)
+    return deduped
 
 
 @app.on_event("startup")
@@ -86,6 +165,7 @@ def predict(request: Request, payload: PredictionRequest) -> PredictionResponse:
         explain_map = dict(feature_map)
         explain_map["risk_score"] = risk_score_value
         reasons = model_store.explain(explain_map, max_items=3)
+        suggestions = build_suggestions(str(label), reasons, risk_score_value)
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc))
     return PredictionResponse(
@@ -98,6 +178,7 @@ def predict(request: Request, payload: PredictionRequest) -> PredictionResponse:
         risk_score_predicted=predicted_score,
         risk_score_calculated=calculated_score,
         reasons=reasons,
+        suggestions=suggestions,
     )
 
 
@@ -118,6 +199,7 @@ def predict_batch(
         explain_map = dict(feature_map)
         explain_map["risk_score"] = risk_score_value
         reasons = model_store.explain(explain_map, max_items=3)
+        suggestions = build_suggestions(str(label), reasons, risk_score_value)
         items.append(
             PredictionResponse(
                 student_id=item.student_id,
@@ -129,6 +211,7 @@ def predict_batch(
                 risk_score_predicted=predicted_score,
                 risk_score_calculated=calculated_score,
                 reasons=reasons,
+                suggestions=suggestions,
             )
         )
     return BatchPredictionResponse(items=items)
