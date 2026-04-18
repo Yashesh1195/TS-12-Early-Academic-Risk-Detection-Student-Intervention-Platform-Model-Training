@@ -2,7 +2,7 @@ venv/
 __pycache__/
 *.pyc
 .ipynb_checkpoints/
-services/ml_api/models/*.pkl
-services/ml_api/models/*.joblib
-services/core_api/data/*.json
-.env
+# services/ml_api/models/*.pkl
+# services/ml_api/models/*.joblib
+# services/core_api/data/*.json
+# .env
